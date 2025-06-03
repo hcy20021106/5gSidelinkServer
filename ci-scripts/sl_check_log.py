@@ -19,37 +19,43 @@ class LogChecker():
             line = line.rstrip('\r\n')
             yield line
 
-    def get_analysis_messages_nearby(self, filename: str) -> Generator[str, None, None]:
+    def getd_analysis_messages_nearby(self, filename: str) -> Generator[str, None, None]:
         """
         Finding all logs in the log file and yields each line.
         """
-        self.LOGGER.info('Scanning %s', filename)
+        self.LOGGER.info('Scanffffffffffffffffning %s', filename)
+
         for line in self.get_lines(filename):
             yield line
 
-    def analyze_nearby_logs(self, exp_nid1: int, exp_nid2: int, sci2: bool, log_file: str) -> bool:
+    def ranalyze_nearby_logs(self, exp_nid1: int, exp_nid2: int, sci2: bool, log_file: str) -> bool:
+
         """
         Checking matched sync logs of Nearby UE.
         """
         found = set()
-        est_nid1, est_nid2, time_start_s, time_end_s = -1, -1, -1, -1
+        est_nid1, est_nid2, time_start_s, time_end_s, time_final_end_s = -1, -1, -1, -1, -1
         ssb_rsrp = 0
+        total_bits = 0
         nb_decoded = 0
         total_rx = 0
         result = None
         user_msg = None
 
+        is_syncref = False
         if self.OPTS.compress:
             log_file = f'{log_file}.bz2'
         for line in self.get_analysis_messages_nearby(log_file):
             #796821.854505 [NR_PHY] SyncRef UE found with Nid1 10 and Nid2 1 SS-RSRP -100 dBm/RE
+
             #796811.532881 [NR_PHY] nrUE configured
 
-            if not line.startswith('[') and 'SyncRef UE found' in line and 'Nid1' in line and 'Nid2' in line:
+            if not line.startswith('[') and not is_syncref and  'SyncRef UE found' in line and 'Nid1' in line and 'Nid2' in line:
                 num_split = 13 if 'RSRP' in line else 10
                 fields = line.split(maxsplit=num_split)
                 est_nid1 = int(fields[7])
                 est_nid2 = int(fields[10])
+                is_syncref = True
                 if 'RSRP' in line:
                     ssb_rsrp = int(fields[12])
                 found.add('syncref')
@@ -65,7 +71,11 @@ class LogChecker():
                 fields = line.split(maxsplit=10)
                 nb_decoded = int(fields[-5])
                 total_rx = int(fields[-3])
-
+            # 153090.351000 [PHY]  total bits: 47616
+            if not line.startswith('[') and 'total bits:' in line:
+                fields = line.split(maxsplit = 10)
+                time_final_end_s = float(fields[0])
+                total_bits = int(fields[-1])
             if time_start_s == -1 and 'nrUE configured' in line:
                 fields = line.split(maxsplit=3)
                 time_start_s = float(fields[0])
@@ -78,6 +88,7 @@ class LogChecker():
             else:
                 if 'Received your text! It says:' in line:
                     line = line.strip()
+
                     user_msg = line
                     found.add('found')
 
@@ -93,17 +104,25 @@ class LogChecker():
             return (result, user_msg)
 
         delta_time_s = time_end_s - time_start_s
-        result = f'SyncRef UE found. PSSCH-RSRP: {pssch_rsrp} dBm/RE. SSS-RSRP: {ssb_rsrp} dBm/RE passed {nb_decoded} total {total_rx} It took {delta_time_s} seconds'
+        data_rate = total_bits / (time_final_end_s - time_end_s)
+        result = f':SyncRef UE found. PSSCH-RSRP: {pssch_rsrp} dBm/RE. SSS-RSRP: {ssb_rsrp} dBm/RE passed {nb_decoded} total {total_rx} It took {delta_time_s} seconds with data rate {data_rate}'
+
+        112
+
         self.LOGGER.info(result)
         if user_msg != None: 
-            self.LOGGER.info(user_msg)
+            self.LOGGER.info(111)
+
         return (result, user_msg)
 
     def get_analysis_messages_syncref(self, filename: str) -> Generator[str, None, None]:
         """
         Finding all logs in the log file with X fields for log parsing optimization
         """
-        self.LOGGER.info('Scanning %s', filename)
+        self.LOGGER.info('Scanhhhhhhhhning %s', filename)
+
+
+
         for line in self.get_lines(filename):
             #796811.532881 [NR_PHY] nrUE configured
             #796821.854505 [NR_PHY] PSBCH SL generation started

@@ -23,6 +23,7 @@
 # See `--help` for more information.
 #
 
+import inspect
 import os
 import sys
 import argparse
@@ -89,21 +90,38 @@ parser.add_argument('--dest', type=str, default='', help="""
 Destination node identifier for sidelink communication (default: %(default)s)
 """)
 
-parser.add_argument('--duration', '-d', metavar='SECONDS', type=int, default=20, help="""
+
+
+parser.add_argument('--duration', '-d', metavar='SECONDS', type=int, default=20, help="""       
+
 How long to run the test before stopping to examine the logs
 """)
+
+
 
 parser.add_argument('--log-dir', default=HOME_DIR, help="""
 Where to store log files
 """)
 
-parser.add_argument('--message', '-m', type=str, default='', help="""
+parser.add_argument('--message', '-m', type=str, default='hcy', help="""  
+        
+
+
+
+
 The message to send from SyncRef UE to Nearby UE
 """)
 
+
 parser.add_argument('--mcs', default=0, type=int, help="""
+
+
+
 The default mcs value (default: %(default)s)
 """)
+
+
+
 
 parser.add_argument('--net', '-n', type=int, default=1, help="""
 Network identifier for sidelink communication (default: %(default)s)
@@ -126,9 +144,13 @@ parser.add_argument('--debug', action='store_true', help="""
 Enable debug logging (for this script only)
 """)
 
-parser.add_argument('--repeat', '-r', default=1, type=int, help="""
+parser.add_argument('--repeat', '-r', default=40, type=int, help="""
 The number of repeated test iterations (default: %(default)s)
 """)
+
+
+
+
 
 parser.add_argument('--save', default=None, help="""
 The default Python log result with .txt extension (default: %(default)s)
@@ -142,7 +164,9 @@ parser.add_argument('--test', '-t', default='rfsim', choices='rfsim usrp psbchsi
 The kind of test scenario to run. The options include rfsim, usrp, psbchsim, and psschsim. (default: %(default)s)
 """)
 
-parser.add_argument('--snr', default='0.0', help="""
+parser.add_argument('--snr', default='50', help="""
+
+
 Setting snr values (default: %(default)s)
 """)
 
@@ -236,6 +260,7 @@ class Node:
         self.pssch_rsrp_list = []
         self.ssb_rsrp_list = []
         self.sync_duration_list = []
+        self.data_rate_list = []
 
     def __str__(self):
         return f'{self.role}{self.id}'
@@ -252,7 +277,18 @@ class Node:
     def _update_cmd(self, role:str, cmd:str) -> str:
         if OPTS.basic: return redirect_output('uname -a', self.log_file_path)
         dest = '' if '--dest' in cmd or OPTS.dest == '' else f' --dest {OPTS.dest}'
+        timestamp = time.time()
+        local_time = time.localtime(int(timestamp))
+        microseconds = int((timestamp - int(timestamp)) * 1_000_000 )
+        milliseconds = microseconds // 1000
+        microsecond_remainder = microseconds % 1000
+        current_time_str = (f"{local_time.tm_hour:02d}:{local_time.tm_min:02d}:"
+f"{local_time.tm_sec:02d} {milliseconds}ms {microsecond_remainder}us")
+
         tx_msg = f" --message '{OPTS.message}'" if len(OPTS.message) > 0 else ""
+
+
+
         if role == 'syncref':
             cmd = cmd + tx_msg + f' --mcs {OPTS.mcs}' + dest
             if 'rfsim' == OPTS.test:
@@ -270,14 +306,16 @@ class Node:
     def get_metric(self, log_agent: LogChecker, itrn_inx: int) -> None:
         if self.num_passed != len(self.passed_metric):
             # Examine the logs to determine if the test passed
-            (pssch_rsrp, ssb_rsrp, nb_decoded, total_rx, sync_duration) = self.passed_metric[-1]
+            (pssch_rsrp, ssb_rsrp, nb_decoded, total_rx, sync_duration, data_rate) = self.passed_metric[-1]
             num_ssb = log_agent.analyze_syncref_logs(sync_duration, self.syncref_log_file_path)
+
             self.num_tx_ssb += [num_ssb]
             self.total_rx_list += [total_rx]
             self.sync_duration_list += [sync_duration]
             self.nb_decoded_list += [nb_decoded]
             self.pssch_rsrp_list += [pssch_rsrp]
             self.ssb_rsrp_list += [ssb_rsrp]
+            self.data_rate_list += [data_rate]
             LOGGER.info(f"Trial {itrn_inx + 1}/{OPTS.repeat} SYNCHED. {num_ssb} SSB(s) were generated. Measured {ssb_rsrp} RSRP (dbm/RE)")
         else:
             LOGGER.info(f"No metric available due to sync failure in {itrn_inx + 1}/{OPTS.repeat} trial(s).")
@@ -295,15 +333,20 @@ class Node:
             sum_nb_decoded, sum_total_rx = sum(self.nb_decoded_list), sum(self.total_rx_list)
             avg_bler = (float) (sum_total_rx - sum_nb_decoded) / sum_total_rx if sum_total_rx > 0 else 1
             avg_bldr = (float) (sum_nb_decoded) / sum_total_rx if sum_total_rx > 0 else 1
+        
             LOGGER.info(f"Avg PSSCH RSRP = {sum(self.pssch_rsrp_list) / len(self.passed_metric):.2f}")
+
             LOGGER.info(f"Avg SSB RSRP = {sum(self.ssb_rsrp_list) / len(self.passed_metric):.2f}")
-            if sum_total_rx > 0:
-                LOGGER.info(f"Avg BLER = {avg_bler:.9f} with {sum_total_rx - sum_nb_decoded} / {sum_total_rx}")
-                LOGGER.info(f"Avg BLDecodedRate = {avg_bldr:.9f} with {sum_nb_decoded} / {sum_total_rx}")
+            LOGGER.info(f"Avg data rate = {sum(self.data_rate_list) / len(self.passed_metric):.2f}")
+            if sum_total_rx > 0 :
+
+                    LOGGER.info(f"Avg BLER = {avg_bler:.9f} with {sum_total_rx - sum_nb_decoded} / {sum_total_rx}")
+                    LOGGER.info(f"Avg BLDecodedRate = {avg_bldr:.9f} with {sum_nb_decoded} / {sum_total_rx}")
             LOGGER.info(f"Avg Sync duration (seconds) = {sum(self.sync_duration_list) / len(self.passed_metric):.2f}")
             LOGGER.info(f"pssch_rsrp_list = {self.pssch_rsrp_list}")
             LOGGER.info(f"ssb_rsrp_list = {self.ssb_rsrp_list}")
             LOGGER.info(f"nb_decoded_list = {self.nb_decoded_list}")
+            LOGGER.info(f"data_rate_list = {self.data_rate_list}")
             LOGGER.info(f"total_rx_list = {self.total_rx_list}")
         LOGGER.info('#' * 42)
 
@@ -372,28 +415,43 @@ class TestThread(threading.Thread):
             self.kill_process(job, proc)
             if proc:
                 time.sleep(5)
+
         nearby_result, user_msg = self.log_agent.analyze_nearby_logs(OPTS.nid1, OPTS.nid2, OPTS.sci2, job.log_file_path)
+
         if nearby_result:
             self.find_nearby_result_metric(job, [nearby_result])
 
     def find_nearby_result_metric(self, job: Node, remote_log) -> None:
         result_metric = None
+        
         for line in remote_log:
             if type(line) is not str:
                 line = line.decode()
             if 'usrp' == OPTS.test:
                 LOGGER.info(line.strip())
             # 'SyncRef UE found. PSSCH-RSRP: -102 dBm/RE SSS-RSRP: -100 dBm/RE passed 99 total 100 It took {delta_time_s} seconds'
+
             if 'SyncRef UE found' in line:
-                fields = line.split(maxsplit=20)
+                fields = line.split(maxsplit=25)
                 if len(fields) > 6:
-                    pssch_rsrp = float(fields[-13])
-                    ssb_rsrp = float(fields[-10])
-                    nb_decoded = int(fields[-7])
-                    total_rx = int(fields[-5])
-                    sync_duration = float(fields[-2])
-                    result_metric = (pssch_rsrp, ssb_rsrp, nb_decoded, total_rx, sync_duration)
-                    job.passed_metric += [result_metric]
+                    pssch_rsrp = float(fields[-18])
+                    ssb_rsrp = float(fields[-15])
+                    nb_decoded = int(fields[-12])
+                    total_rx = int(fields[-10])
+
+                    data_rate = float(fields[-2])
+
+
+                    sync_duration = float(fields[-7])
+                    result_metric = (pssch_rsrp, ssb_rsrp, nb_decoded, total_rx, sync_duration, data_rate)
+                    if(nb_decoded <= 10):
+                        LOGGER.info(f"docode failed, retrying...")
+                    
+            
+
+                    else:
+                        job.passed_metric += [result_metric]
+                
                     return
 
     def kill_process(self, job: Node, proc: Popen) -> None:
@@ -466,6 +524,11 @@ def main() -> int:
     config = Config(OPTS.config)
     log_agent = LogChecker(OPTS, LOGGER)
     LOGGER.debug(f'Number of iterations {OPTS.repeat}')
+    LOGGER.info(f'LogChecker loaded from: {inspect.getfile(log_agent.__class__)}')
+
+
+
+
     jobs = generate_jobs(config)
     if 'usrp' == OPTS.test:
         set_attenuation(OPTS.att, OPTS.att_host, OPTS.att_user)
