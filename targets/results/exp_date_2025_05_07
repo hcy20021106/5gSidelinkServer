@@ -1,0 +1,24 @@
+start experiment at date 2025_05_07 time 15_55_07 
+OPENAIR_HOME    = 
+OPENAIR1_DIR    = 
+OPENAIR2_DIR    = 
+OPENAIR3_DIR    = 
+OPENAIR3_DIR   = 
+OPENAIR_TARGETS = 
+Start test_1.1.1:: ping -c 100 -q -U 127.0.0.1 -s 64 -i 1
+start experiment at date 2025_05_07 time 15_55_30 
+OPENAIR_HOME    = 
+OPENAIR1_DIR    = 
+OPENAIR2_DIR    = 
+OPENAIR3_DIR    = 
+OPENAIR3_DIR   = 
+OPENAIR_TARGETS = 
+Start test_1.1.1:: ping -c 100 -q -U 127.0.0.1 -s 64 -i 1
+start experiment at date 2025_05_07 time 15_57_15 
+OPENAIR_HOME    = 
+OPENAIR1_DIR    = 
+OPENAIR2_DIR    = 
+OPENAIR3_DIR    = 
+OPENAIR3_DIR   = 
+OPENAIR_TARGETS = 
+Start test_1.1.1:: ping -c 100 -q -U 127.0.0.1 -s 64 -i 1

@@ -314,6 +314,7 @@ void phy_procedures_nrUE_SL_TX(PHY_VARS_NR_UE *ue,
                                UE_nr_rxtx_proc_t *proc,
                                uint8_t gNB_id)
 {
+  LOG_I(NR_PHY, "ue->is_synchronized_sl: %d\n", ue->is_synchronized_sl);
   int slot_tx = proc->nr_slot_tx;
   int frame_tx = proc->frame_tx;
   AssertFatal(frame_tx >= 0 && frame_tx < 1024, "frame_tx %d is not in 0...1023\n",frame_tx);

@@ -36,6 +36,10 @@
 #include "openair2/NR_UE_PHY_INTERFACE/NR_IF_Module.h"
 #include "openair1/PHY/NR_REFSIG/sss_nr.h"
 #include "common/utils/nr/nr_common.h"
+#include <sys/socket.h>
+#include <fcntl.h>
+#include <arpa/inet.h>
+
 //#define DEBUG_PHY_SL_PROC
 
 /*
@@ -617,7 +621,6 @@ static void UE_synch(void *arg) {
 }
 
 void processSlotTX(void *arg) {
-
   nr_rxtx_thread_data_t *rxtxD = (nr_rxtx_thread_data_t *) arg;
   UE_nr_rxtx_proc_t *proc = &rxtxD->proc;
   PHY_VARS_NR_UE    *UE   = rxtxD->UE;
@@ -884,8 +887,38 @@ int slot_to_flag_sl(uint8_t tdd_period, int slot, uint16_t slot_config, uint16_t
   return flag;
 }
 
+void init_udp_socket() {
+ 
+    struct sockaddr_in addr;
+    udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
+
+    if (udp_socket < 0) {
+
+   	 perror("UDP socket create failed");
+    	exit(1);
+    }
+
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(6666);
+    addr.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(udp_socket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+
+    	perror("UDP bind failed");
+    	exit(1);
+    }
+
+    fcntl(udp_socket, F_SETFL, O_NONBLOCK); 
+ 
+}
+
+
+
 void *UE_thread_SL(void *arg) {
   PHY_VARS_NR_UE *UE = (PHY_VARS_NR_UE *) arg;
+  init_udp_socket();
+
   openair0_timestamp timestamp, writeTimestamp;
   void *rxp[NB_ANTENNAS_RX], *txp[NB_ANTENNAS_TX];
   AssertFatal(0 == openair0_device_load(&(UE->rfdevice), &openair0_cfg[0]), "");

@@ -51,9 +51,9 @@
 #include "PHY/NR_REFSIG/ul_ref_seq_nr.h"
 #include <openair2/UTIL/OPT/opt.h>
 #include "PHY/NR_TRANSPORT/nr_transport_proto.h"
+#include "executables/nr-uesoftmodem.h"
 #include "PHY/NR_UE_ESTIMATION/nr_estimation.h"
 #include <openair2/LAYER2/NR_MAC_COMMON/nr_mac_common.h>
-
 //#define DEBUG_PSSCH_MAPPING
 //#define DEBUG_MAC_PDU
 //#define DEBUG_DFT_IDFT
@@ -356,24 +356,28 @@ void nr_ue_set_slsch(NR_DL_FRAME_PARMS *fp,
   harq->status = ACTIVE;
   unsigned char *test_input = harq->a;
   uint64_t *sci_input = harq->a_sci2;
-
+ 
   char *sl_user_msg = get_softmodem_params()->sl_user_msg;
-  uint32_t  sl_user_msg_len = (sl_user_msg != NULL) ? strlen(sl_user_msg) : 0;
-  bool payload_type_string = (sl_user_msg_len > 0) ? true : false;
+  
+  struct timespec t;
+  if (clock_gettime(CLOCK_REALTIME, &t) == -1) abort();
+
+  char timestamp_str[32];
+  snprintf(timestamp_str, sizeof(timestamp_str), "@%lu.%06lu ", t.tv_sec, t.tv_nsec / 1000);
+  
+  int recv_len = recvfrom(udp_socket, test_input, TBS / 8, MSG_DONTWAIT, NULL, NULL);
+
+  if (recv_len > 0) {
+	LOG_I(NR_PHY, "Received UDP payload to transmit: len=%d\n", recv_len);
+	} 
+  else {
+	// fallback，如果没有接收到，就发默认数据
+	for (int i = 0; i < min(32, TBS / 8); i++)
+		test_input[i] = '0' + (unsigned char) (i + 3) % 10;
+	LOG_I(NR_PHY, "No UDP payload, sending default message.\n");
+}
   if(qsize_of_relay_data() == 0) {
-    if (payload_type_string) {
-      memcpy(test_input, sl_user_msg, sl_user_msg_len);
-      LOG_D(NR_PHY, "SLSCH_TX will send %s\n", test_input);
-    } else {
-      srand(time(NULL));
-      for (int i = 0; i < min(32, TBS / 8); i++)
-        test_input[i] = '0' + (unsigned char) (i + 3) % 10;//rand();
-      // test_input[0] = (unsigned char) (slot);
-      // test_input[1] = (unsigned char) (frame & 0xFF); // 8 bits LSB
-      // test_input[2] = (unsigned char) ((frame >> 8) & 0x3); //
-      // test_input[3] = (unsigned char) ((frame & 0x111) << 5) + (unsigned char) (slot) + rand() % 256;
-      LOG_D(NR_PHY, "SLSCH_TX will send %u\n", test_input[3]);
-    }
+     
     uint64_t u = 0;
     uint64_t dest_id = (0x2 + ((slot % 2) == 0 ? 1 : 0)) * get_softmodem_params()->node_number;
     dest_id = (0x2 + ((slot % 2) == 0 ? 1 : 0)) * get_softmodem_params()->node_number;
@@ -394,6 +398,7 @@ void nr_ue_slsch_tx_procedures(PHY_VARS_NR_UE *txUE,
                                uint8_t slot) {
 
   LOG_D(NR_PHY, "nr_ue_slsch_tx_procedures hard_id %d %d.%d\n", harq_pid, frame, slot);
+  LOG_I(NR_PHY, "frame: %d, slot: %d\n", frame, slot);
 
   NR_DL_FRAME_PARMS *frame_parms = &txUE->frame_parms;
   int32_t **txdataF = txUE->common_vars.txdataF;

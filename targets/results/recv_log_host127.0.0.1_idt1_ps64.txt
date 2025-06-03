@@ -1,0 +1,15 @@
+PING 127.0.0.1 (127.0.0.1) 64(92) bytes of data.
+
+--- 127.0.0.1 ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3074ms
+rtt min/avg/max/mdev = 0.014/0.017/0.026/0.005 ms
+PING 127.0.0.1 (127.0.0.1) 64(92) bytes of data.
+
+--- 127.0.0.1 ping statistics ---
+62 packets transmitted, 62 received, 0% packet loss, time 62483ms
+rtt min/avg/max/mdev = 0.011/0.025/0.084/0.011 ms
+PING 127.0.0.1 (127.0.0.1) 64(92) bytes of data.
+
+--- 127.0.0.1 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2060ms
+rtt min/avg/max/mdev = 0.015/0.019/0.027/0.005 ms
